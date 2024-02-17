@@ -5,7 +5,7 @@
 // 2014-02-05
 // DragonflyDIY.com
 /***********************************************************************************/
-
+// New patterns designed 02/2021, code lost, recoded 2/2024
 
 // this tunes the accuracy of _delay_ms
 // I've screwed with the normal timing to the point where I have to play with this from standard values to get it right.
@@ -27,19 +27,20 @@ int button_down_count = 0;
 /***********************************************************************************/
 // update this to the max mode when you add more modes
 // should be one more than actual modes - the biggest one runs all patterns
-#define max_mode 12
+#define max_mode 16
 /***********************************************************************************/
 
 
 // These indicate which mode we should be running
 // the ISR changes button_mode immediately when the button is clicked
 // the main program notices that the two no longer match and switches modes
-volatile int button_mode = 1; // this is changed by the button within the ISR
-volatile int current_mode = 1; // this follows button_mode when the main code reacts
+volatile int button_mode = max_mode; // this is changed by the button within the ISR
+volatile int current_mode = max_mode; // this follows button_mode when the main code reacts
 volatile int shutdown_now = 0;
 
 
-
+// forward reference
+void power_off(void);
 
 
 
@@ -58,6 +59,8 @@ volatile int shutdown_now = 0;
 // completes a cycle.  Current value for 1 second defined below.
 // this is the number of hertz that the display is updating at also.
 #define ONESECOND 125
+// maybe not a minute - how long to run each pattern in rotation mode
+#define ONEMINUTE 20*ONESECOND
 volatile int loops = 0;
 
 
@@ -78,11 +81,18 @@ int Delay(int ms)
 	{
 		_delay_ms(1);
 		if (button_mode != current_mode)
+		{
 			return 1;
+		}
+		
 		if (shutdown_now)
+		{
 			return 1;
+		}
+		
 		mscount++;
 	}
+	
 	return 0;
 }
 
@@ -91,9 +101,15 @@ int Delay(int ms)
 int ExitCheck()
 {
 	if (button_mode != current_mode)
+	{
 		return 1;
-	if (loops > (ONESECOND*60))
+	}
+	
+	if (loops > (ONEMINUTE))
+	{
 		return 1;
+	}
+	
 	return 0;
 }
 
@@ -129,7 +145,7 @@ void ModeSwitchPattern()
 void PopPopPopBuzz()
 {
 	loops = 0;
-	while (loops < ONESECOND*60)
+	while (loops < ONEMINUTE)
 	{
 		for (char y=0; y<4; y++)
 		{
@@ -137,14 +153,18 @@ void PopPopPopBuzz()
 			ClearDisplay();
 			DELAY(80);
 			for (int x=0; x<9; x++)
+			{
 				displaybuffer[x] = 15;
+			}
 		}
+		
 		for (int y=15; y>0; y--)
 		{
 			DELAY(30);
 			for (int x=0; x<9; x++)
 				displaybuffer[x] = y-1;
 		}
+		
 		DELAY(250);
 	}
 }
@@ -156,7 +176,7 @@ void SlowFadingSequence()
 	ClearDisplay();
 	int cur = 0;
 	int dir = 1;
-	while (loops < ONESECOND*60)
+	while (loops < ONEMINUTE)
 	{
 		// work with current bit first
 		if (displaybuffer[cur] == 15)
@@ -170,7 +190,9 @@ void SlowFadingSequence()
 					dir = -1;
 				}
 				else
+				{
 					cur++;
+				}
 			}
 			else
 			{
@@ -180,13 +202,19 @@ void SlowFadingSequence()
 					dir = 1;
 				}
 				else
+				{
 					cur--;
+				}
 			}
 		}
+		
 		displaybuffer[cur]++;
 		int last = cur-dir;
 		if ((last >= 0) && (last <= 8))
+		{
 			displaybuffer[last]--;
+		}
+		
 		DELAY(100);
 	}
 }
@@ -204,36 +232,52 @@ void KnightRider()
 	ClearDisplay();
 
 	// run for 1 minute
-    while (loops < ONESECOND*60)
+    while (loops < ONEMINUTE)
     {
 		DELAY(50);
 		// diminish every LED every cycle
 		for (x=0; x<9; x++)
+		{
 			if (displaybuffer[x] > 3)
+			{
 				displaybuffer[x] -=4;
+			}
 			else
+			{
 				displaybuffer[x] = 0;
+			}
+		}
 
 		// we let the "scan" overshoot the end a bit for realism
 		if ((dotpos >= 0) && (dotpos <= 8))
+		{
 			displaybuffer[dotpos] = 15;
+		}
 
 		if (direction == 1)
+		{
 			if (dotpos == 8+KROVERSHOOT)
 			{
 				dotpos = 8;
 				direction = -1;
 			}
 			else
+			{
 				dotpos++;
+			}
+		}
 		else
+		{
 			if (dotpos == 0-KROVERSHOOT)
 			{
 				dotpos = 0;
 				direction = 1;
 			}
 			else
+			{
 				dotpos--;
+			}
+		}
     }
 }
 
@@ -244,7 +288,7 @@ void MovingIrritation()
 	loops = 0;
 	int cur = 0;
 	ClearDisplay();
-	while (loops < ONESECOND*60)
+	while (loops < ONEMINUTE)
 	{
 		int curplus = cur+1;
 		if (curplus > 8)
@@ -258,6 +302,7 @@ void MovingIrritation()
 			ClearDisplay();
 			DELAY(40);
 		}
+		
 		cur = curplus;
 	}
 }
@@ -268,7 +313,10 @@ void MovingIrritation()
 void shutdownPattern()
 {
 	for (char x=0; x<9; x++)
+	{
 		displaybuffer[x] = 1; // start with all on low
+	}
+	
 	_delay_ms(100);
 
 	// fade to center, center getting brighter as they all blink out
@@ -279,6 +327,7 @@ void shutdownPattern()
 		displaybuffer[4+x] = 0;
 		displaybuffer[4] = 15-(x*3);
 	}
+	
 	_delay_ms(100);
 	for (char x=15; x>0; x--)
 	{
@@ -295,7 +344,7 @@ void chase()
 	loops = 0;
 	ClearDisplay();
 	// run for 1 minute
-    while (loops < ONESECOND*60)
+    while (loops < ONEMINUTE)
 	{
 		for (char x=0; x<9; x++)
 		{
@@ -312,16 +361,22 @@ void Surge()
 	loops = 0;
 	ClearDisplay();
 	// run for 1 minute
-    while (loops < ONESECOND*60)
+    while (loops < ONEMINUTE)
 	{
 		for (char x=0; x<9; x++)
+		{
 			displaybuffer[x] = 15;
+		}
+		
 		for (char y=15; y>0; y--)
 		{
 			DELAY(20);
 			for (char x=0; x<9; x++)
+			{
 				displaybuffer[x] = y-1;
+			}
 		}
+		
 		DELAY(200);
 	}
 }
@@ -334,7 +389,7 @@ void EMTFlash()
 	side = 0;
 	ClearDisplay();
 	// run for 1 minute
-    while (loops < ONESECOND*60)
+    while (loops < ONEMINUTE)
 	{
 		for (char x=0; x<3; x++)
 		{
@@ -352,15 +407,21 @@ void EMTFlash()
 				displaybuffer[7] = 15;
 				displaybuffer[8] = 15;
 			}
+			
 			DELAY(30);
 			ClearDisplay();
 			DELAY(30);
 		}
+		
 		DELAY(300);
 		if (side == 0)
+		{
 			side = 1;
+		}
 		else
+		{
 			side = 0;
+		}
 	}
 }
 
@@ -368,11 +429,18 @@ void EMTFlash()
 void gbfill(char pos, char size)
 {
 	for (char x=0; x<9; x++)
+	{
 		if ((x < pos) || (x >= (pos + size)))
+		{
 			displaybuffer[x] = 0;
+		}
 		else
+		{
 			displaybuffer[x] = 15;
+		}
+	}
 }
+	
 void growingbounce()
 {
 	loops = 0;
@@ -381,7 +449,7 @@ void growingbounce()
 	char size = 1;
 	char fooloop = 0;
 	ClearDisplay();
-	while (loops < ONESECOND*60)
+	while (loops < ONEMINUTE)
 	{
 gbtop:
 		gbfill(curpos, size);
@@ -395,24 +463,33 @@ gbtop:
 					displaybuffer[y] = x-1;
 				DELAY(50);
 			}
+			
 			DELAY(100);
 			curpos = 0;
 			size = 1;
 			direction = 1;
 			goto gbtop;
 		}
+		
 gbrecalc:
 		if (direction == 1)
+		{
 			if (curpos+size < 9)
+			{
 				curpos++;
+			}
 			else
 			{
 				direction = 0;
 				goto gbrecalc;
 			}
+		}
 		else
+		{
 			if (curpos > 0)
+			{
 				curpos--;
+			}
 			else
 			{
 				direction = 1;
@@ -422,23 +499,31 @@ gbrecalc:
 					size++;
 				}
 				else
+				{
 					goto gbrecalc;
+				}
 			}
+		}
 	}
 }
 
 void Cinema()
 {
 	loops = 0;
-	while (loops < ONESECOND*60)
+	while (loops < ONEMINUTE)
 	{
 		for (char x=0; x<3; x++)
 		{
 			ClearDisplay();
 			for (char y=x; y<9; y+=3)
+			{
 				displaybuffer[y] = 15;
+			}
+			
 			if (Delay(60))
+			{
 				return;
+			}
 		}
 	}
 }
@@ -458,30 +543,37 @@ void ctrDisplay(int value)
 			curval = 15;
 		}
 		else
+		{
 			value = 0;
+		}
 
 		displaybuffer[4-x] = curval;
 		if (x>0)
+		{
 			displaybuffer[4+x] = curval;
+		}
 	}
 }
+	
 void centerThrob()
 {
 	loops = 0;
 
 	// run for 1 minute
-    while (loops < ONESECOND*60)
+    while (loops < ONEMINUTE)
 	{
 		for (int x=0; x<70; x+=2)
 		{
 			ctrDisplay(x);
 			DELAY(4);
 		}
+		
 		for (int x=70; x>=0; x-=2)
 		{
 			ctrDisplay(x);
 			DELAY(4);
 		}
+		
 		DELAY(200);
 	}
 }
@@ -502,33 +594,219 @@ void LEDTEST()
 	for (y=1; y<15; y++)
 	{
 		for (x=0; x<9; x++)
+		{
 			displaybuffer[x] = y;
+		}
+		
 		DELAY(LEDTESTDELAY);
 	}
 
 	for (y=0;y<3; y++)
 	{
 		for (x=0; x<9; x++)
+		{
 			displaybuffer[x] = 15;
+		}
+		
 		DELAY(LEDTESTDELAY);
 		for (x=0; x<9; x++)
+		{
 			displaybuffer[x] = 0;
+		}
+		
 		DELAY(LEDTESTDELAY);
 	}
 }
 
-void accelerator()
+// every other led fades up then down, the others fade down then up
+void AlternateLedFade()
 {
-	
+	int curbright = 0; // cycle from 0 to 15 then back
+	int direction = 1;
+
+	ClearDisplay();
+
+	loops = 0;
+	while (loops < ONEMINUTE)
+	{
+		for (int led=0; led<9; led+=2)
+		{
+			displaybuffer[led] = curbright;
+		}
+		
+		for (int led=1; led<8; led+=2)
+		{
+			displaybuffer[led] = 15-curbright;
+		}
+		
+		curbright += direction;
+		if (curbright == 16)
+		{
+			direction = -1;
+			curbright = 14;
+			DELAY(150);
+		}
+		else if (curbright == -1)
+		{
+			direction = 1;
+			curbright = 1;
+			DELAY(150);
+		}
+		DELAY(20);
+	}
 }
+
+#define N 25
+#define M 7
+
+// Mersenne twister pseudorandom generator
+double
+genrand()
+{
+    unsigned long y;
+    static int k = 0;
+    static unsigned long x[N]={ /* initial 25 seeds, change as you wish */
+	0x95f24dab, 0x0b685215, 0xe76ccae7, 0xaf3ec239, 0x715fad23,
+	0x24a590ad, 0x69e4b5ef, 0xbf456141, 0x96bc1b7b, 0xa7bdf825,
+	0xc1de75b7, 0x8858a9c9, 0x2da87693, 0xb657f9dd, 0xffdc8a9f,
+	0x8121da71, 0x8b823ecb, 0x885d05f5, 0x4e20cd47, 0x5a9ad5d9,
+	0x512c0c03, 0xea857ccd, 0x4cc1d30f, 0x8891a8a1, 0xa6b7aadb
+    };
+    static unsigned long mag01[2]={ 
+        0x0, 0x8ebfd028 /* this is magic vector `a', don't change */
+    };
+    if (k==N) { /* generate N words at one time */
+      int kk;
+      for (kk=0;kk<N-M;kk++) {
+	x[kk] = x[kk+M] ^ (x[kk] >> 1) ^ mag01[x[kk] % 2];
+      }
+      for (; kk<N;kk++) {
+	x[kk] = x[kk+(M-N)] ^ (x[kk] >> 1) ^ mag01[x[kk] % 2];
+      }
+      k=0;
+    }
+    y = x[k];
+    y ^= (y << 7) & 0x2b5b2500; /* s and b, magic vectors */
+    y ^= (y << 15) & 0xdb8b0000; /* t and c, magic vectors */
+    y &= 0xffffffff; /* you may delete this line if word size = 32 */
+/* 
+   the following line was added by Makoto Matsumoto in the 1996 version
+   to improve lower bit's corellation.
+   Delete this line to o use the code published in 1994.
+*/
+    y ^= (y >> 16); /* added to the 1994 version */
+    k++;
+    return( (double) y / (unsigned long) 0xffffffff);
+}
+
+// Random LEDs to full brightness about 8 times a second, fading out over 1/3 second so there are about 3 on at any given time
+void Randomize()
+{
+	ClearDisplay();
+
+	int y = 0;
+	loops = 0;
+	while (loops < ONEMINUTE)
+	{
+		// light a random LED
+		if (y++ > 5)
+		{
+			int which = (int)(genrand() * 9);
+			displaybuffer[which] = 15;
+			y = 0;
+		}
+		
+		DELAY(30);
+		// Fade any LEDs that are on
+		for (int x=0; x<9; x++)
+		{
+			if (displaybuffer[x] > 0)
+			{
+				displaybuffer[x]--;
+			}
+		}
+	}
+}
+
+
+// LEDs fall from top, stack up at bottom. When the whole stack is full, they start to fall out the bottom one at a time until the stack is empty again.
+void FallingStack()
+{
+	ClearDisplay();
+	
+	loops = 0;
+	while (loops < ONEMINUTE)
+	{
+		// filling
+		for (int x=8; x >= 0; x--)
+		{
+			for (int y=0; y<=x; y++)
+			{
+				displaybuffer[y] = 15;
+				DELAY(100);
+				if (y == x)
+				{
+					break;
+				}
+				
+				displaybuffer[y] = 0;
+			}
+		}
+		
+		DELAY(150);
+		
+		// emptying
+		for (int x=8; x >= 0; x--)
+		{
+			for (int y=x; y <= 8; y++)
+			{
+				displaybuffer[y] = 15;
+				DELAY(100);
+				displaybuffer[y] = 0;
+			}
+		}
+
+		DELAY(150);
+	}
+}
+
+// All LEDs on at once then fade for half a second, repeat every second or so.
+void BangFade()
+{
+	ClearDisplay();
+
+	loops = 0;
+	while (loops < ONEMINUTE)
+	{
+		for (int x=0; x<=8; x++)
+		{
+			displaybuffer[x] = 15;
+		}
+		
+		DELAY(200);
+		
+		for (int x=14; x>=0; x--)
+		{
+			for (int y=0; y<=8; y++)
+			{
+				displaybuffer[y] = x;
+			}
+			
+			DELAY(50);	
+		}
+			
+		DELAY(250);
+	}
+}
+
 
 /**********************************************************************/
 void LAZAR()
 {
-	loops = 0;
 	ClearDisplay();
 	// run for 1 minute
-    while (loops < ONESECOND*60)
+	loops = 0;
+    while (loops < ONEMINUTE)
 	{
 		for (short x=0; x<9; x++)
 		{
@@ -536,35 +814,29 @@ void LAZAR()
 			DELAY(20);
 			displaybuffer[x] = 0;
 		}
+		
 		DELAY(100);
 	}
 }
 
 
-// VU Meter utility function: set level
-void vulevel(short level)
+/**********************************************************************/
+
+// for debugging the rotator
+void indicator(int number)
 {
-	loops = 0;
-	for (short x=0; x<9; x++)
+	ClearDisplay();
+	
+	for (int x=0; x<9; x++)
 	{
-		if (x <= level)
-			displaybuffer[x] = 255;
+		if ((number & (1<<x)) > 0)
+			displaybuffer[x] = 15;
 		else
 			displaybuffer[x] = 0;
 	}
+	
+	DELAY(1000);
 }
-void vumeter()
-{
-	loops = 0;
-
-	short currentlevel = 0;
-	while (1)
-	{
-	}
-}
-
-/**********************************************************************/
-
 
 
 void SetupDisplayInterrupt()
@@ -587,7 +859,7 @@ void SetupDisplayInterrupt()
 
 int main()
 {
-	int rotator = 0; // used for rotating all modes when in demo mode
+	int rotator = 1; // used for rotating all modes when in demo mode
 
     SetupDisplayInterrupt();
     sei();           	// Global enable Interrupts
@@ -595,7 +867,6 @@ int main()
 	ClearDisplay();
 
 //	LEDTEST(); // need a way to call this except on initial power-up
-
 
 	while (1)
 	{
@@ -606,6 +877,7 @@ int main()
 			button_down_count = 101;
 			power_off();
 		}
+		
 		if (button_mode != current_mode)
 		{
 			current_mode = button_mode;
@@ -614,6 +886,7 @@ int main()
 		else
 		{
 			int runmode;
+
 			if (current_mode == max_mode)
 			{
 				runmode = rotator;
@@ -623,44 +896,79 @@ int main()
 			{
 				runmode = current_mode;
 			}
+
 			switch (runmode)
 			{
-			case 1:
-				KnightRider();
-				break;
-			case 2:
-				chase();
-				break;
-			case 3:
-				EMTFlash();
-				break;
-			case 4:
-				LAZAR();
-				break;
-			case 5:
-				centerThrob();
-				break;
-			case 6:
-				Surge();
-				break;
-			case 7:
-				growingbounce();
-				break;
-			case 8:
-				Cinema();
-				break;
-			case 9:
-				SlowFadingSequence();
-				break;
-			case 10:
-				MovingIrritation();
-				break;
-			case 11:
-				PopPopPopBuzz();
-				break;
+				case 1:
+					KnightRider();
+					break;
+
+				case 2:
+					chase();
+					break;
+
+				case 3:
+					EMTFlash();
+					break;
+
+				case 4:
+					LAZAR();
+					break;
+
+				case 5:
+					centerThrob();
+					break;
+
+				case 6:
+					Surge();
+					break;
+
+				case 7:
+					growingbounce();
+					break;
+
+				case 8:
+					Cinema();
+					break;
+
+				case 9:
+					SlowFadingSequence();
+					break;
+
+				case 10:
+					MovingIrritation();
+					break;
+
+				case 11:
+					PopPopPopBuzz();
+					break;
+
+		// 2021 new patterns (recoded 2024)
+				case 12:
+					AlternateLedFade();
+					break;
+
+				case 13:
+					Randomize();
+					break;
+
+					
+				case 14:
+					FallingStack();
+					break;
+
+				case 15:
+					BangFade();
+					break;
+
+					
+				default:
+					rotator = 1;
+					break;
 			}
 		}
 	}
+	
 	return 0;
 }
 
@@ -783,7 +1091,7 @@ ISR(TIM0_OVF_vect)
    	DDRB = DDRval;
 	PORTB = pinlevelB;
 
-	// the rest of the function is concerned with setting up those values for
+	// the rest of the function is concerned with setting up those values for next time
 	
 	// we do PWM manually every entry, then we switch banks occasionally.
 	// we have 3 channels to PWM on
